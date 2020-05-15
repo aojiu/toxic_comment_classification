@@ -18,7 +18,7 @@
 import logging
 import os
 import json
-# import pandas as pd
+import pandas as pd
 import csv
 
 from ...file_utils import is_tf_available
@@ -95,7 +95,9 @@ def glue_convert_examples_to_features(
 
         inputs = tokenizer.encode_plus(example.text_a, example.text_b, add_special_tokens=True, max_length=max_length, return_token_type_ids=True)
         input_ids, token_type_ids = inputs["input_ids"], inputs["token_type_ids"]
-       
+        # print("this is input ids: ")
+        # print(inputs['input_ids'][0])
+        # print(type(inputs['input_ids'][0]))
 
         # The mask has 1 for real tokens and 0 for padding tokens. Only real
         # tokens are attended to.
@@ -566,62 +568,44 @@ class AbuseProcessor(DataProcessor):
     def get_example_from_tensor_dict(self, tensor_dict):
         """See base class."""
         return InputExample(
-            # tensor_dict["id"].numpy(),
+            tensor_dict["idx"].numpy(),
             tensor_dict["comment_text"].numpy().decode("utf-8"),
+            None,
             str(tensor_dict["label"].numpy()),
         )
 
     def get_train_examples(self, data_dir):
         """See base class."""
-        # df = pd.read_csv(os.path.join(data_dir, "clean_train.csv"), sep=',' ,encoding='utf8', engine='c' )
-        # print(df.iloc[1]['comment_text'])
-        # return self._create_examples(df, "train")
-        path = os.path.join(data_dir, "new_train.tsv")
-        with open(path, 'r') as file:
-            lines = csv.reader(file, delimiter = '\t')
-            return (self._create_examples(lines, "train"))
+        df = pd.read_csv(os.path.join(data_dir, "cleaned_train.csv"))
+        df = df.drop(['threat','insult','toxic','id'], axis=1)
+        return (self._create_examples(df, 'train'))
 
 
     def get_dev_examples(self, data_dir):
         """See base class."""
-        # df = pd.read_csv(os.path.join(data_dir, "clean_val.csv"), sep=',' ,encoding='utf8', engine='c' )
-        # return self._create_examples(df, "dev")
-        path = os.path.join(data_dir, "new_dev.tsv")
-        with open(path, 'r') as file:
-            lines = csv.reader(file, delimiter = '\t')
-            # print(lines)
-            return (self._create_examples(lines, "dev"))
+        df = pd.read_csv(os.path.join(data_dir, "cleaned_val.csv"))
+        df = df.drop(['threat','insult','toxic','id'], axis=1)
+        return (self._create_examples(df, 'dev'))
 
 
     def get_labels(self):
         """See base class."""
-        # return ["threat","insult","toxic","IsAbuse"]
-        return [[0,1],[0,1],[0,1],[0,1]]
+        return [0, 1]
+        # return [[0,1],[0,1],[0,1],[0,1]]
 
     def _create_examples(self, lines, set_type):
         """Creates examples for the training and dev sets."""
+
         examples = []
-        for (i,line) in enumerate(lines):
-            # print(line)
-            if i == 0:
+        for i in range(len(lines)):
+            if type(lines.iloc[i]['comment_text']) != str:
                 continue
-            # guid = "%s-%s" % (set_type, line[0])
-            text_a = line[1]
-            label = [line[-4],line[-3],line[-2],line[-1]]
-            examples.append(InputExample(text_a=text_a, label=label))
+            guid = "%s-%s" % (set_type, i)
+            text_a = lines.iloc[i]['comment_text']
+            label = lines.iloc[i]['IsAbuse']
+            examples.append(InputExample(guid = guid, text_a = text_a, text_b = None, label = label))
         return examples
-        # return examples
-        # for (i, line) in enumerate(lines):
-        #     # print("printing lines!!!!!!!!:")
-        #     # print(line)
-        #     if i == 0:
-        #         continue
-        #     guid = "%s-%s" % (set_type, line[0])
-        #     # print(guid)
-        #     text_a = line[2]
-        #     label = line[-1]
-        #     examples.append(InputExample(guid=guid, text_a=text_a, label=label))
-        # return examples
+        
 
 glue_tasks_num_labels = {
     "cola": 2,
@@ -634,7 +618,7 @@ glue_tasks_num_labels = {
     "rte": 2,
     "wnli": 2,
     "boolq": 2,
-    "abuse": 4,
+    "abuse": 2,
 }
 
 glue_processors = {
