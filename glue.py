@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 def glue_convert_examples_to_features(
     examples,
     tokenizer,
-    max_length=510,
+    max_length=512,
     task=None,
     label_list=None,
     output_mode=None,
